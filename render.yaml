@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: bbwhatsapp-web
+    env: node
+    buildCommand: yarn && yarn build
+    startCommand: yarn serve
+    staticDir: web-build
+    envVars:
+      - key: NODE_ENV
+        value: production
