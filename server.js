@@ -1,48 +1,26 @@
-const app = require('./app');
-const http = require('http');
 const mongoose = require('mongoose');
 const config = require('./config/db');
 
-// Connect to database
-mongoose.connect(config.mongoURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => {
-    console.error('Database connection error:', err);
-    process.exit(1);
-  });
-
-// Create HTTP server
-const server = http.createServer(app);
-
-// Setup Socket.io
-const io = require('socket.io')(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
-
-// Socket.io authentication
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) {
-    return next(new Error('Authentication error'));
-  }
-
+// Connect to MongoDB with better error handling
+const connectDB = async () => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.userId = decoded.id;
-    next();
+    await mongoose.connect(config.mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      socketTimeoutMS: 45000 // Close sockets after 45s of inactivity
+    });
+    console.log('MongoDB Connected');
   } catch (err) {
-    return next(new Error('Authentication error'));
+    console.error('MongoDB Connection Error:', err);
+    process.exit(1);
   }
+};
+
+// Call the connectDB function before starting the server
+connectDB().then(() => {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
 });
-
-// Socket.io connection handler
-require('./controllers/socketController')(io);
-
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
