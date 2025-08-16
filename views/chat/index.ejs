@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('../partials/head') %>
+    <title>BBWhatsApp - Chat</title>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="user-profile">
+                    <div class="avatar"><%= user.name.charAt(0).toUpperCase() %></div>
+                    <span><%= user.name %></span>
+                </div>
+                <div class="search-box">
+                    <input type="text" placeholder="Search contacts...">
+                </div>
+            </div>
+            <div class="contacts-list">
+                <% contacts.forEach(contact => { %>
+                    <div class="contact" data-id="<%= contact._id %>">
+                        <div class="avatar"><%= contact.name.charAt(0).toUpperCase() %></div>
+                        <div class="contact-info">
+                            <div class="name"><%= contact.name %></div>
+                            <div class="last-message"><%= contact.lastMessage || 'No messages yet' %></div>
+                        </div>
+                        <div class="contact-status <%= contact.online ? 'online' : 'offline' %>"></div>
+                    </div>
+                <% }) %>
+            </div>
+        </div>
+        <div class="chat-area">
+            <div class="chat-header">
+                <% if (activeContact) { %>
+                    <div class="contact-info">
+                        <div class="avatar"><%= activeContact.name.charAt(0).toUpperCase() %></div>
+                        <div>
+                            <div class="name"><%= activeContact.name %></div>
+                            <div class="status"><%= activeContact.online ? 'Online' : 'Offline' %></div>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <div class="no-contact-selected">
+                        Select a contact to start chatting
+                    </div>
+                <% } %>
+            </div>
+            <div class="messages-container" id="messages-container">
+                <% if (activeContact && messages) { %>
+                    <% messages.forEach(message => { %>
+                        <div class="message <%= message.sender._id.toString() === user._id.toString() ? 'sent' : 'received' %>">
+                            <div class="message-content"><%= message.content %></div>
+                            <div class="message-time">
+                                <%= new Date(message.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) %>
+                                <% if (message.sender._id.toString() === user._id.toString()) { %>
+                                    <span class="status-icon <%= message.status %>">
+                                        <% if (message.status === 'sent') { %>
+                                            <i class="fas fa-check"></i>
+                                        <% } else if (message.status === 'delivered') { %>
+                                            <i class="fas fa-check-double"></i>
+                                        <% } else if (message.status === 'read') { %>
+                                            <i class="fas fa-check-double" style="color: blue;"></i>
+                                        <% } %>
+                                    </span>
+                                <% } %>
+                            </div>
+                        </div>
+                    <% }) %>
+                <% } %>
+            </div>
+            <% if (activeContact) { %>
+                <div class="message-input-container">
+                    <input type="text" id="message-input" placeholder="Type a message...">
+                    <button id="send-button"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <%- include('../partials/scripts') %>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io({
+            auth: {
+                token: '<%= token %>'
+            }
+        });
+
+        const currentUser = {
+            id: '<%= user._id %>',
+            name: '<%= user.name %>',
+            avatar: '<%= user.name.charAt(0).toUpperCase() %>'
+        };
+
+        const activeContactId = '<%= activeContact ? activeContact._id : "" %>';
+
+        // Socket event handlers
+        socket.on('connect', () => {
+            console.log('Connected to socket server');
+            socket.emit('join', currentUser.id);
+        });
+
+        socket.on('receiveMessage', (message) => {
+            if (message.sender._id === activeContactId || message.recipient._id === activeContactId) {
+                appendMessage(message);
+                scrollToBottom();
+            }
+        });
+
+        // Message sending
+        document.getElementById('send-button').addEventListener('click', sendMessage);
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const content = input.value.trim();
+            
+            if (content && activeContactId) {
+                const message = {
+                    sender: currentUser.id,
+                    recipient: activeContactId,
+                    content: content
+                };
+
+                socket.emit('sendMessage', message);
+                input.value = '';
+            }
+        }
+
+        function appendMessage(message) {
+            const container = document.getElementById('messages-container');
+            const messageDiv = document.createElement('div');
+            
+            const isSent = message.sender._id === currentUser.id;
+            messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+            
+            let statusIcon = '';
+            if (isSent) {
+                if (message.status === 'sent') {
+                    statusIcon = '<i class="fas fa-check"></i>';
+                } else if (message.status === 'delivered') {
+                    statusIcon = '<i class="fas fa-check-double"></i>';
+                } else if (message.status === 'read') {
+                    statusIcon = '<i class="fas fa-check-double" style="color: blue;"></i>';
+                }
+            }
+            
+            const time = new Date(message.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">${message.content}</div>
+                <div class="message-time">
+                    ${time} ${statusIcon}
+                </div>
+            `;
+            
+            container.appendChild(messageDiv);
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('messages-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Contact selection
+        document.querySelectorAll('.contact').forEach(contact => {
+            contact.addEventListener('click', () => {
+                const contactId = contact.getAttribute('data-id');
+                window.location.href = `/chat/${contactId}`;
+            });
+        });
+    </script>
+</body>
+</html>
