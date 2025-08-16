@@ -1,0 +1,10 @@
+<header class="header">
+    <div class="logo">BBWhatsApp</div>
+    <% if (user) { %>
+        <div class="user-info">
+            <div class="avatar"><%= user.name.charAt(0).toUpperCase() %></div>
+            <span><%= user.name %></span>
+            <a href="/auth/logout" class="logout">Logout</a>
+        </div>
+    <% } %>
+</header>
