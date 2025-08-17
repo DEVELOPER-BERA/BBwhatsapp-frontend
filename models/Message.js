@@ -1,32 +1,25 @@
 const mongoose = require('mongoose');
 
-const MessageSchema = new mongoose.Schema({
+const messageSchema = new mongoose.Schema({
   sender: {
-    type: mongoose.Schema.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  recipient: {
-    type: mongoose.Schema.ObjectId,
+  receiver: {
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
   content: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
-  status: {
-    type: String,
-    enum: ['sent', 'delivered', 'read'],
-    default: 'sent'
-  },
-  createdAt: {
+  timestamp: {
     type: Date,
     default: Date.now
   }
 });
 
-// Create index for faster querying
-MessageSchema.index({ sender: 1, recipient: 1 });
-
-module.exports = mongoose.model('Message', MessageSchema);
+module.exports = mongoose.model('Message', messageSchema);
